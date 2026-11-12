@@ -4,6 +4,26 @@ A browser extension for building a daily listening or practice list from YouTube
 
 ![Repeat Playlist Player](images/wide.png)
 
+## Video tutorial
+
+[![Watch the video tutorial](images/tutorial-poster.png)](tutorial/repeat-playlist-tutorial.mp4)
+
+**[▶ Watch the 1:38 video tutorial](tutorial/repeat-playlist-tutorial.mp4)** (narrated, 1080p; opens GitHub's video player). The demo uses sample lesson titles and a drawn illustration of the YouTube page bar; the editor itself is shown live. The narration is synthetic speech.
+
+<details><summary>Transcript</summary>
+
+1. **Welcome**: Repeat Playlist Player lets you build a list from YouTube videos, put them in the order you want, and set how many times each one repeats and how fast it plays. Here is how it works.
+2. **Open the editor**: Click the toolbar icon to open the editor in the side panel. It has three tabs. My lists, Load new, and More.
+3. **Load videos**: In Load new, paste a public playlist link and press Load as new list. Or switch to Browse a channel, enter the channel, and press Find playlists. Tick the playlists you want, and each one is saved as its own list.
+4. **Repeats and speed**: Every list is a compact table. Use the arrows next to Rep and Speed to change a video's repeats and playback speed. Or just type a value. Speed goes from a quarter, up to four times.
+5. **Reorder**: To change the order, drag the handle on the left of a row. A line shows where it will land.
+6. **Ranges and tools**: Press Range to show start and end times, so a video plays only part of the way. Tools lets you reverse or shuffle the list, or set repeats and speed for all ticked videos at once.
+7. **Play**: Press Play. YouTube opens and plays your list in order, in your own account, so your Premium speeds and ad free playback still apply. A small bar at the bottom left of the page lets you go back, pause, skip, or stop.
+8. **Save and sync**: Your lists are saved automatically, and they sync through your browser. Under More, you can back up your lists and restore them anywhere.
+9. **Done**: That's Repeat Playlist Player. Build your list, set the repeats and speeds, and press play.
+
+</details>
+
 ## Features
 
 - **Per-video repeats and speed** (repeats 1 to 999, speed 0.25x to 4x), set with compact steppers or typed in.
@@ -85,4 +105,4 @@ Nothing is collected or sent anywhere except to youtube.com. Full text: https://
 
 ## Repository
 
-`index.html` is the privacy policy page (served by GitHub Pages). `images/` holds the screenshots used above.
+`index.html` is the privacy policy page (served by GitHub Pages). `images/` holds the screenshots used above, and `tutorial/` has the video tutorial.
