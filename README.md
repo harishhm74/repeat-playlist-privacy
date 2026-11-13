@@ -24,6 +24,16 @@ A browser extension for building a daily listening or practice list from YouTube
 
 </details>
 
+## Android app (installable web app)
+
+Chrome on Android can't run extensions, so there is a web app that plays your lists inside the app, with the same repeats, speed and start/end times.
+
+1. On your Android phone, open **https://harishhm74.github.io/repeat-playlist-privacy/app/** in Chrome.
+2. Open the Chrome menu (⋮) and choose **Install app** (or **Add to Home screen**). It then opens full screen like any app.
+3. Load a playlist (paste a public playlist link), edit repeats and speed, and press **Play**.
+
+Limits: YouTube's embedded player caps playback at **2x** (the app tells you when a video is held to 2x), playback pauses when the app goes to the background or the screen locks, and some videos disallow embedding (the app skips them). Browsing a channel's playlists is only in the desktop extensions. Lists are stored on the phone only; there is no sync in the web app.
+
 ## Features
 
 - **Per-video repeats and speed** (repeats 1 to 999, speed 0.25x to 4x), set with compact steppers or typed in.
@@ -105,4 +115,4 @@ Nothing is collected or sent anywhere except to youtube.com. Full text: https://
 
 ## Repository
 
-`index.html` is the privacy policy page (served by GitHub Pages). `images/` holds the screenshots used above, and `tutorial/` has the video tutorial.
+`index.html` is the privacy policy page (served by GitHub Pages). `images/` holds the screenshots used above, `tutorial/` has the video tutorial, and `app/` is the installable Android web app.

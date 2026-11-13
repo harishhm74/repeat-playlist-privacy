@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repeat Playlist Player</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#101214">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root {
+    --bg: #101214; --panel: #181b1f; --line: #2a2f35; --text: #e8eaed; --muted: #9aa3ad;
+    --accent: #ff7a1a; --good: #4cc38a; --bad: #ff6b6b;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.35 var(--font); }
+  body { padding: 6px 8px calc(24px + env(safe-area-inset-bottom)); max-width: 900px; margin-inline: auto; }
+  .hidden { display: none !important; }
+
+  /* tabs */
+  .tabs { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+  .tabs [role=tab] { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); padding: 6px 10px; font-weight: 600; cursor: pointer; margin-bottom: -1px; }
+  .tabs [role=tab]:hover { color: var(--text); }
+  .tabs [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); }
+  .tabs .sp { flex: 1; }
+  .tabs a { color: var(--muted); font-size: 11px; padding: 0 4px; text-decoration: none; }
+  .tabs a:hover { color: var(--text); }
+  #syncBadge { color: var(--bad); font-size: 11px; cursor: help; }
+  .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+
+  button { font: inherit; color: var(--text); background: #232830; border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: #3a4048; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #1a0e02; font-weight: 600; }
+  button.on { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, .handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=text], select, textarea { background: #0d0f11; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; font: inherit; }
+  input.bad { border-color: var(--bad); }
+  textarea { width: 100%; min-height: 110px; resize: vertical; font: 12px/1.45 var(--mono); }
+  label.opt { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); white-space: nowrap; }
+  .line { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .line + .line { margin-top: 6px; }
+  .grow { flex: 1 1 140px; min-width: 0; }
+  .grow, select.grow, input.grow { width: 100%; }
+  .cap-label, .cap { color: var(--muted); font-size: 11px; }
+  .hint { color: var(--muted); font-size: 11.5px; margin: 6px 0 0; }
+  .msg { font-size: 12px; min-height: 1.1em; margin-top: 4px; overflow-wrap: anywhere; }
+  .msg:empty { display: none; }
+  .msg.bad { color: var(--bad); } .msg.good { color: var(--good); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: #14171a; color: var(--muted); }
+  .seg button[aria-pressed=true] { background: #232830; color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+
+  /* steppers */
+  .step { display: inline-flex; align-items: center; gap: 2px; background: #0d0f11; border: 1px solid var(--line); border-radius: 5px; padding: 0 1px 0 3px; }
+  .step.bad { border-color: var(--bad); }
+  .step .cap { margin-right: 2px; }
+  .step .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; background: transparent; border: 0; padding: 1px 1px; color: var(--text); font: inherit; font-weight: 600; min-width: 0; }
+  .step .val:focus { background: #232830; border-radius: 3px; }
+  .step .arrows { display: flex; flex-direction: column; }
+  .step .arrows button { padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 8px; line-height: 1; min-width: 12px; height: 11px; border-radius: 3px; touch-action: manipulation; }
+  .step .arrows button:hover:not(:disabled) { color: var(--text); background: #232830; }
+  .step .arrows button:disabled { opacity: .25; }
+  @media (pointer: coarse) { .step .arrows button { height: 15px; min-width: 24px; } }
+
+  /* tables */
+  .tbl-wrap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #14171a; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th { text-align: left; font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: #1b1f24; padding: 3px 3px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; }
+  td { padding: 1px 2px; border-bottom: 1px solid #20252b; vertical-align: middle; height: 24px; }
+  tr:last-child td { border-bottom: 0; }
+  th.c, td.c { text-align: center; }
+  .c-cb { width: 20px; } .c-dr { width: 14px; } .c-n { width: 20px; } .c-rep { width: 42px; } .c-sp { width: 52px; }
+  .c-rg { width: 40px; } .c-act { width: 52px; } .c-cnt { width: 54px; }
+  table:not(.show-range) .rg { display: none; }
+  td input[type=checkbox], th input[type=checkbox] { margin: 0; vertical-align: middle; }
+  td.n { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; font-size: 10.5px; padding-right: 3px; }
+  .tcell { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .ttl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .now-tag { color: var(--accent); font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.ct { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  tr.row.current td { background: #22180f; }
+  tr.row.off .ttl, tr.row.off .n { opacity: .45; }
+  tr.row.drop-above td { box-shadow: inset 0 2px 0 var(--accent); }
+  tr.row.drop-below td { box-shadow: inset 0 -2px 0 var(--accent); }
+  tr.row.dragging { opacity: .4; }
+  .handle { cursor: grab; color: var(--muted); user-select: none; display: inline-block; width: 100%; text-align: center; font-size: 14px; line-height: 20px; }
+  .handle:active { cursor: grabbing; }
+  td.rg input { width: 100%; padding: 1px 3px; font-size: 12px; text-align: center; }
+  td.act { white-space: nowrap; text-align: right; }
+  td.act button { padding: 0; border: 0; background: transparent; color: var(--muted); width: 16px; height: 20px; line-height: 20px; font-size: 12px; }
+  td.act button:hover { color: var(--text); background: #232830; }
+  td.act button.go:hover { color: var(--accent); }
+  .empty { padding: 14px; text-align: center; color: var(--muted); }
+
+  .head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+  .head .summary { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; flex: 1 1 100px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .listname { font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #importerWrap { position: absolute; left: -9999px; top: 0; width: 200px; height: 200px; }
+  details summary { cursor: pointer; color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-lists" aria-selected="true" aria-controls="pane-lists">My lists</button>
+    <button role="tab" id="tab-new" aria-selected="false" aria-controls="pane-new">Load new</button>
+    <button role="tab" id="tab-more" aria-selected="false" aria-controls="pane-more">More</button>
+    <span class="sp"></span>
+    <span id="syncBadge"></span>
+    
+  </div>
+
+  <!-- My lists -->
+  <section class="pane" id="pane-lists" role="tabpanel">
+    <div class="line"><select id="listSelect" class="grow" aria-label="Saved list"></select></div>
+    <div class="line">
+      <input type="text" id="listName" class="grow" aria-label="List name" placeholder="List name" autocomplete="off">
+      <button id="listNew" title="Start an empty list">New</button>
+      <button id="listDup" title="Copy this list">Copy</button>
+      <button id="listDel">Delete</button>
+    </div>
+    <div class="line"><input type="text" id="listSource" class="grow" aria-label="Source playlist link" placeholder="Source playlist link (optional)" autocomplete="off"></div>
+  </section>
+
+  <!-- Load new -->
+  <section class="pane hidden" id="pane-new" role="tabpanel">
+    <div class="line">
+      <span class="seg" role="group" aria-label="Where to load from">
+        <button id="modeList" aria-pressed="true">YouTube list</button>
+        <button id="modeChan" aria-pressed="false" style="display:none">Browse a channel</button>
+      </span>
+      <span class="cap-label" style="margin-left:auto">New videos start at</span>
+      <span id="defRepeatsMount"></span><span id="defSpeedMount"></span>
+    </div>
+
+    <div id="sec-list">
+      <div class="line">
+        <input type="text" id="plLink" class="grow" aria-label="Playlist link or ID" placeholder="Public playlist link or ID  (youtube.com/playlist?list=...)" autocomplete="off">
+      </div>
+      <div class="line">
+        <button id="plReplace" class="primary" title="Create a new saved list from this playlist">Load as new list</button>
+        <button id="plAppend" title="Append these videos to the list you are editing">Add to current list</button>
+      </div>
+      <div class="msg" id="plMsg"></div>
+    </div>
+
+    <div id="sec-chan" class="hidden">
+      <div class="line">
+        <input type="text" id="chanInput" class="grow" list="chanList" aria-label="Channel link or handle" placeholder="@handle or channel link" autocomplete="off">
+        <datalist id="chanList"></datalist>
+        <button id="chanFind">Find playlists</button>
+      </div>
+      <div class="msg" id="chanMsg"></div>
+      <div id="chanResults" class="hidden">
+        <div class="line">
+          <span class="cap-label">Set ticked to</span>
+          <span id="chanRepMount"></span><span id="chanSpMount"></span>
+          <button id="chanApply">Apply</button>
+          <button class="primary" id="chanSave" style="margin-left:auto">Save ticked as lists</button>
+        </div>
+        <div class="tbl-wrap" style="margin-top:6px; max-height:260px; overflow:auto">
+          <table>
+            <thead><tr>
+              <th class="c c-cb"><input type="checkbox" id="chanAllCb" aria-label="Tick all playlists"></th>
+              <th>Playlist</th><th class="c-cnt">Videos</th><th class="c c-rep">Rep</th><th class="c c-sp">Speed</th>
+            </tr></thead>
+            <tbody id="chanRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- More -->
+  <section class="pane hidden" id="pane-more" role="tabpanel">
+    <div class="msg" id="syncMsg" style="margin:0 0 6px"></div>
+    <details open>
+      <summary>Backup and restore</summary>
+      <div class="line" style="margin-top:6px">
+        <button id="bkCopy">Copy backup</button>
+        <button id="bkDownload">Download backup</button>
+        <input type="file" id="bkFile" accept=".json,application/json" aria-label="Restore from file" style="max-width:150px">
+      </div>
+      <textarea id="bkText" spellcheck="false" aria-label="Paste a backup here" placeholder="Paste a backup here, then press Restore" style="min-height:60px;margin-top:6px"></textarea>
+      <div class="line"><button id="bkRestore">Restore</button></div>
+      <div class="msg" id="bkMsg"></div>
+    </details>
+  </section>
+
+  <!-- Current list -->
+  <section id="current">
+    <div class="head">
+      <button class="primary" id="ytOpen" title="Play this list in the app">▶ Play</button>
+      
+      <button id="ytCopy" style="display:none">Copy plan</button>
+      <label class="opt"><input type="checkbox" id="loop"> Loop</label>
+      <span class="summary" id="summary"></span>
+    </div>
+    <div class="msg" id="ytMsg" style="margin:-2px 0 4px"></div>
+    <div class="line" style="margin:0 0 6px">
+      <input type="text" id="oneLink" class="grow" aria-label="Add a video" placeholder="+ Add a video: link or ID" autocomplete="off">
+      <button id="oneAdd">Add</button>
+      <button id="toggleRange" title="Show start and end columns" aria-pressed="false">Range</button>
+      <button id="toggleTools" title="Reverse, shuffle, set values for all ticked videos" aria-expanded="false">Tools</button>
+    </div>
+    <div class="msg" id="oneMsg" style="margin:-2px 0 4px"></div>
+    <div class="line hidden" id="tools" style="margin:0 0 6px">
+      <button id="reverse">Reverse</button>
+      <button id="shuffle">Shuffle</button>
+      <span class="cap-label" style="margin-left:6px">Set ticked to</span>
+      <span id="bulkRepeatsMount"></span><button id="bulkRepeatsGo">Set</button>
+      <span id="bulkSpeedMount"></span><button id="bulkSpeedGo">Set</button>
+    </div>
+    <div class="tbl-wrap">
+      <table id="grid">
+        <thead><tr>
+          <th class="c c-cb"><input type="checkbox" id="selAllCb" aria-label="Tick or untick all videos"></th>
+          <th class="c-dr"></th>
+          <th class="c-n" style="text-align:right;padding-right:3px">#</th>
+          <th>Video</th>
+          <th class="c c-rep">Rep</th>
+          <th class="c c-sp">Speed</th>
+          <th class="c c-rg rg">Start</th>
+          <th class="c c-rg rg">End</th>
+          <th class="c-act"></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty hidden" id="emptyMsg">No videos yet. Add one above or use “Load new”.</div>
+    </div>
+  </section>
+
+  <script src="core.js"></script>
+  <script>window.RPP_APP = true;</script>
+  <script src="player.js"></script>
+  <script src="editor.js"></script>
+  <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});</script>
+</body>
+</html>
