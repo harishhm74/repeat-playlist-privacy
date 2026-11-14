@@ -14,7 +14,7 @@
   css.textContent = '#rppOv{position:fixed;inset:0;background:#000;z-index:1000;display:none;flex-direction:column;color:#e8eaed;font:14px/1.4 system-ui,sans-serif}' +
     '#rppOv.on{display:flex}#rppBox{position:relative;width:100%;aspect-ratio:16/9;background:#000;flex:none;max-height:60vh}#rppBox>div,#rppBox iframe{position:absolute;inset:0;width:100%;height:100%}' +
     '#rppInfo{padding:12px 14px;flex:1;overflow:auto}#rppTitle{font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-    '#rppMeta{color:#ff9a4d;margin-top:2px;font-variant-numeric:tabular-nums}#rppNote{color:#9aa3ad;margin-top:6px;font-size:12.5px}#rppMsg{margin-top:6px;color:#ff6b6b;font-size:13px;min-height:1em}' +
+    '#rppMeta{color:#ff9a4d;margin-top:2px;font-variant-numeric:tabular-nums}#rppNote{color:#9aa3ad;margin-top:6px;font-size:12.5px}#rppChan{color:#9aa3ad;margin-top:6px;font-size:13px}#rppDesc{margin-top:8px;padding-top:8px;border-top:1px solid #2a2f35;color:#c9ced4;font-size:13.5px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}#rppDesc a{color:#ff9a4d}#rppMsg{margin-top:6px;color:#ff6b6b;font-size:13px;min-height:1em}' +
     '#rppBar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid #2a2f35;background:#101214}' +
     '#rppBar button{flex:1;font:inherit;font-weight:600;color:#e8eaed;background:#232830;border:1px solid #2a2f35;border-radius:10px;padding:14px 4px}#rppBar button.p{background:#ff7a1a;border-color:#ff7a1a;color:#1a0e02}' +
     '#rppTap{display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:2;align-items:center;justify-content:center}#rppTap.on{display:flex}#rppTap button{font:inherit;font-size:18px;font-weight:700;padding:14px 26px;border-radius:12px;border:0;background:#ff7a1a;color:#1a0e02}';
@@ -22,8 +22,8 @@
   var box = el('div', { id: 'rppBox' }); box.appendChild(el('div', { id: 'rppPlayer' }));
   var tap = el('div', { id: 'rppTap' }); var tapBtn = el('button', null, 'Tap to play'); tap.appendChild(tapBtn); box.appendChild(tap);
   var info = el('div', { id: 'rppInfo' });
-  var title = el('div', { id: 'rppTitle' }), meta = el('div', { id: 'rppMeta' }), note = el('div', { id: 'rppNote' }), msg = el('div', { id: 'rppMsg' });
-  [title, meta, note, msg].forEach(function (x) { info.appendChild(x); });
+  var title = el('div', { id: 'rppTitle' }), meta = el('div', { id: 'rppMeta' }), note = el('div', { id: 'rppNote' }), msg = el('div', { id: 'rppMsg' }), chan = el('div', { id: 'rppChan' }), desc = el('div', { id: 'rppDesc' });
+  [title, meta, chan, note, msg, desc].forEach(function (x) { info.appendChild(x); });
   var bar = el('div', { id: 'rppBar' });
   var bPrev = el('button', null, '⏮ Prev'), bPause = el('button', { 'class': 'p' }, 'Pause'), bNext = el('button', null, 'Next ⏭'), bClose = el('button', null, 'Close');
   [bPrev, bPause, bNext, bClose].forEach(function (x) { bar.appendChild(x); });
@@ -75,13 +75,36 @@
   }
 
   // ---------- playback ----------
+
+  var descCache = {};
+  function linkify(node, text) {
+    var re = /(https?:\/\/[^\s<]+)/g, last = 0, m;
+    while ((m = re.exec(text))) {
+      node.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var a = el('a', { href: m[1], target: '_blank', rel: 'noopener noreferrer' }, m[1]); node.appendChild(a); last = m.index + m[1].length;
+    }
+    node.appendChild(document.createTextNode(text.slice(last)));
+  }
+  function showDesc(id) {
+    desc.textContent = '';
+    function put(d) { if (cur() && cur().id === id) { desc.textContent = ''; if (d) linkify(desc, d); } }
+    if (descCache[id] != null) { put(descCache[id]); return; }
+    if (!getKey()) { desc.textContent = 'Add a YouTube API key in the More tab to see video descriptions here.'; desc.style.color = '#7d8691'; return; }
+    desc.style.color = ''; desc.textContent = 'Loading description...';
+    yt('videos', { part: 'snippet', id: id }).then(function (j) {
+      var s = j.items && j.items[0] && j.items[0].snippet;
+      descCache[id] = s ? (s.description || 'No description.') : 'No description.';
+      if (s && s.channelTitle) descCache[id + ':ch'] = s.channelTitle;
+      put(descCache[id]); if (cur() && cur().id === id && descCache[id + ':ch']) chan.textContent = descCache[id + ':ch'];
+    }).catch(function (e) { put(''); desc.textContent = 'Could not load the description (' + (e.message || e) + ').'; });
+  }
   function cur() { return items[idx]; }
   function begin() {
     var r = cur(); if (!r) { finish(); return; }
     started = true; tap.classList.remove('on'); msg.textContent = '';
     var o = { videoId: r.id, startSeconds: parseTime(r.start) || 0 }, e = parseTime(r.end); if (e != null) o.endSeconds = e;
     player.loadVideoById(o);
-    paint();
+    paint(); chan.textContent = ''; showDesc(r.id);
     clearTimeout(watchdog);
     watchdog = setTimeout(function () { var s = player.getPlayerState(); if (s !== 1 && s !== 3) tap.classList.add('on'); }, 3500);
   }
@@ -90,7 +113,7 @@
     if (!pos) { finish(); return; }
     idx = pos.idx; rep = pos.rep; begin();
   }
-  function finish() { started = false; title.textContent = 'Finished'; meta.textContent = ''; note.textContent = 'Reached the end of the list.'; bPause.textContent = 'Close'; }
+  function finish() { started = false; chan.textContent = ''; desc.textContent = ''; title.textContent = 'Finished'; meta.textContent = ''; note.textContent = 'Reached the end of the list.'; bPause.textContent = 'Close'; }
   function paint() {
     var r = cur(); if (!r) return;
     title.textContent = r.title || r.id;
@@ -108,6 +131,7 @@
     if (e.data === 1) {
       clearTimeout(watchdog); tap.classList.remove('on'); enforceRate(); bPause.textContent = 'Pause';
       var d = player.getVideoData && player.getVideoData(), r = cur();
+      if (d && d.author && r && !chan.textContent) chan.textContent = d.author;
       if (d && d.title && r) { if (!r.title) { r.title = d.title; paint(); } if (window.RPP_ED) window.RPP_ED.setTitle(r.id, d.title); }
     } else if (e.data === 2) bPause.textContent = 'Resume';
     else if (e.data === 0 && started) advance('next');
@@ -133,7 +157,7 @@
 
   function play(list, lp) {
     items = list.map(function (x) { return Object.assign({}, x); }); loop = !!lp; idx = 0; rep = 1;
-    ov.classList.add('on'); ov.setAttribute('aria-hidden', 'false'); title.textContent = 'Loading player...'; meta.textContent = ''; note.textContent = ''; msg.textContent = '';
+    ov.classList.add('on'); ov.setAttribute('aria-hidden', 'false'); title.textContent = 'Loading player...'; meta.textContent = ''; chan.textContent = ''; desc.textContent = ''; note.textContent = ''; msg.textContent = '';
     loadApi().then(function () { var n = 0; (function w() { if (player && player.loadVideoById) { wake(true); begin(); } else if (n++ < 40) setTimeout(w, 250); else msg.textContent = 'The YouTube player did not load.'; })(); });
   }
   function close() { started = false; clearTimeout(watchdog); try { player && player.stopVideo(); } catch (e) {} wake(false); ov.classList.remove('on'); ov.setAttribute('aria-hidden', 'true'); }
