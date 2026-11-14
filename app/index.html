@@ -178,6 +178,16 @@
   <!-- More -->
   <section class="pane hidden" id="pane-more" role="tabpanel">
     <div class="msg" id="syncMsg" style="margin:0 0 6px"></div>
+    <details id="keyBox" open>
+      <summary>Browse channels (YouTube API key)</summary>
+      <p class="hint" style="margin:6px 0">Browsers cannot read YouTube pages directly, so channel browsing uses YouTube's free Data API. Create your own key (Google Cloud Console, enable "YouTube Data API v3", Credentials, API key) and restrict it to the website <b>https://harishhm74.github.io/*</b>. Paste it here. It stays only on this device.</p>
+      <div class="line">
+        <input type="password" id="ytKey" placeholder="API key" autocomplete="off" style="flex:1;min-width:0">
+        <button id="ytKeySave">Save</button>
+        <button id="ytKeyClear">Clear</button>
+      </div>
+      <div class="msg" id="ytKeyMsg"></div>
+    </details>
     <details open>
       <summary>Backup and restore</summary>
       <div class="line" style="margin-top:6px">

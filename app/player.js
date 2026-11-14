@@ -146,5 +146,83 @@
   bClose.addEventListener('click', close);
   tapBtn.addEventListener('click', function () { tap.classList.remove('on'); if (started) { try { player.playVideo(); } catch (e) {} } });
 
-  window.RPP_INAPP = { play: play, importPlaylist: importPlaylist };
+
+  // ---- Channel browsing via YouTube Data API v3 (needs the user's own key) ----
+  function getKey() { try { return (localStorage.getItem('rpp.ytkey') || window.RPP_YT_KEY || '').trim(); } catch (e) { return (window.RPP_YT_KEY || '').trim(); } }
+  function yt(path, params) {
+    var key = getKey();
+    if (!key) return Promise.reject(new Error('Add a YouTube API key in the More tab first.'));
+    params.key = key;
+    var q = Object.keys(params).map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
+    return fetch('https://www.googleapis.com/youtube/v3/' + path + '?' + q).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok || j.error) {
+          var m = (j.error && j.error.message) || ('HTTP ' + r.status);
+          var reason = j.error && j.error.errors && j.error.errors[0] && j.error.errors[0].reason;
+          if (reason === 'quotaExceeded') m = 'Daily YouTube API quota used up. Try again tomorrow.';
+          throw new Error(m);
+        }
+        return j;
+      });
+    });
+  }
+  function resolveChannel(input) {
+    input = String(input || '').trim();
+    if (!input) return Promise.reject(new Error('Enter a channel link or @handle.'));
+    var m, p = null, q = null;
+    if ((m = input.match(/^(UC[\w-]{22})$/)) || (m = input.match(/youtube\.com\/channel\/(UC[\w-]{22})/i))) p = { id: m[1] };
+    else if ((m = input.match(/^(@[\w.\-]+)$/)) || (m = input.match(/youtube\.com\/(@[\w.\-%]+)/i))) p = { forHandle: decodeURIComponent(m[1]) };
+    else if ((m = input.match(/youtube\.com\/user\/([\w.\-%]+)/i))) p = { forUsername: decodeURIComponent(m[1]) };
+    else if ((m = input.match(/youtube\.com\/c\/([\w.\-%]+)/i))) q = decodeURIComponent(m[1]);
+    else return Promise.reject(new Error('That does not look like a YouTube channel link. Try the @handle or the channel address.'));
+    var first = p ? yt('channels', Object.assign({ part: 'snippet', maxResults: 1 }, p)) :
+      yt('search', { part: 'snippet', type: 'channel', q: q, maxResults: 1 }).then(function (s) {
+        var it = s.items && s.items[0];
+        return { items: it ? [{ id: it.snippet.channelId || (it.id && it.id.channelId), snippet: it.snippet }] : [] };
+      });
+    return first.then(function (j) {
+      var c = j.items && j.items[0];
+      if (!c || !c.id) throw new Error('Could not find that channel.');
+      return { id: c.id, title: (c.snippet && c.snippet.title) || input };
+    });
+  }
+  function channelPlaylists(input) {
+    return resolveChannel(input).then(function (ch) {
+      var items = [];
+      function page(tok) {
+        var pr = { part: 'snippet,contentDetails', channelId: ch.id, maxResults: 50 };
+        if (tok) pr.pageToken = tok;
+        return yt('playlists', pr).then(function (j) {
+          (j.items || []).forEach(function (it) {
+            var n = it.contentDetails && it.contentDetails.itemCount;
+            items.push({ id: it.id, title: (it.snippet && it.snippet.title) || it.id, count: n != null ? n + ' videos' : '' });
+          });
+          if (j.nextPageToken && items.length < 500) return page(j.nextPageToken);
+        });
+      }
+      return page(null).then(function () { return { title: ch.title, items: items }; });
+    });
+  }
+
+  (function keyUi() {
+    var inp = document.getElementById('ytKey'), msg = document.getElementById('ytKeyMsg'), mc = document.getElementById('modeChan');
+    function refresh() {
+      var has = !!getKey();
+      if (mc) mc.style.display = has ? '' : 'none';
+      if (inp && has && !inp.value) inp.placeholder = 'Key saved (hidden)';
+    }
+    var sv = document.getElementById('ytKeySave'), cl = document.getElementById('ytKeyClear');
+    if (sv) sv.addEventListener('click', function () {
+      var v = (inp.value || '').trim();
+      if (!/^AIza[\w-]{30,}$/.test(v)) { msg.textContent = 'That does not look like a Google API key (starts with AIza).'; msg.className = 'msg bad'; return; }
+      try { localStorage.setItem('rpp.ytkey', v); } catch (e) {}
+      inp.value = ''; msg.textContent = 'Saved. "Browse a channel" is now available under Load new.'; msg.className = 'msg good'; refresh();
+    });
+    if (cl) cl.addEventListener('click', function () {
+      try { localStorage.removeItem('rpp.ytkey'); } catch (e) {}
+      inp.value = ''; inp.placeholder = 'API key'; msg.textContent = 'Key removed.'; msg.className = 'msg'; refresh();
+    });
+    refresh();
+  })();
+  window.RPP_INAPP = { play: play, importPlaylist: importPlaylist, channelPlaylists: channelPlaylists, hasKey: function () { return !!getKey(); } };
 })();

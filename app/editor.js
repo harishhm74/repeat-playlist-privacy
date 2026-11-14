@@ -674,9 +674,11 @@
     try { url = channelPlaylistsUrl(input); } catch (e) { say(msg, e.message, 'bad'); return; }
     say(msg, 'Looking for playlists...');
     $('#chanFind').disabled = true;
-    fetchCollection(url, collectChannelPlaylists, function (n) { say(msg, 'Found ' + n + ' playlists so far...'); }, 500, { resolveUrl: url.replace(/\/playlists$/, ''), params: 'EglwbGF5bGlzdHM=' }).then(function (r) {
+    var found = (window.RPP_INAPP && window.RPP_INAPP.channelPlaylists) ? window.RPP_INAPP.channelPlaylists(input).then(function (x) { return { items: x.items, data: null, apiTitle: x.title }; }) :
+      fetchCollection(url, collectChannelPlaylists, function (n) { say(msg, 'Found ' + n + ' playlists so far...'); }, 500, { resolveUrl: url.replace(/\/playlists$/, ''), params: 'EglwbGF5bGlzdHM=' });
+    found.then(function (r) {
       if (!r.items.length) throw new Error('No public playlists found on that channel.');
-      var name = channelTitle(r.data) || input;
+      var name = r.apiTitle || channelTitle(r.data) || input;
       if (!store.channels.some(function (c) { return c.url === input; })) { store.channels.unshift({ url: input.slice(0, 120), name: name.slice(0, 60) }); store.channels = store.channels.slice(0, 10); scheduleSave(); renderListUI(); }
       var saved = savedPlaylistIds();
       chanItems = r.items.map(function (it) { return { id: it.id, title: it.title, count: it.count, sel: false, repeats: chanRep.get(), speed: chanSp.get(), saved: !!saved[it.id] }; });

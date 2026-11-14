@@ -31,8 +31,9 @@ Chrome on Android can't run extensions, so there is a web app that plays your li
 1. On your Android phone, open **https://harishhm74.github.io/repeat-playlist-privacy/app/** in Chrome.
 2. Open the Chrome menu (⋮) and choose **Install app** (or **Add to Home screen**). It then opens full screen like any app.
 3. Load a playlist (paste a public playlist link), edit repeats and speed, and press **Play**.
+4. *Optional, to browse a channel:* browsers can't read YouTube pages, so this uses YouTube's free Data API with your own key. In Google Cloud Console create a project, enable **YouTube Data API v3**, create an **API key** and restrict it to the website `https://harishhm74.github.io/*`. Paste it in the app under **More > Browse channels**. The key stays on your device, and the **Browse a channel** button then appears under **Load new**.
 
-Limits: YouTube's embedded player caps playback at **2x** (the app tells you when a video is held to 2x), playback pauses when the app goes to the background or the screen locks, and some videos disallow embedding (the app skips them). Browsing a channel's playlists is only in the desktop extensions. Lists are stored on the phone only; there is no sync in the web app.
+Limits: YouTube's embedded player caps playback at **2x** (the app tells you when a video is held to 2x), playback pauses when the app goes to the background or the screen locks, and some videos disallow embedding (the app skips them). Lists are stored on the phone only; there is no sync in the web app.
 
 ## Features
 
